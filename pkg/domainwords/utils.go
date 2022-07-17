@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"regexp"
 	"sort"
 	"strings"
 )
@@ -65,12 +66,37 @@ func RemoveDuplicateStr(strSlice []string) []string {
 	allKeys := make(map[string]bool)
 	list := []string{}
 	for _, item := range strSlice {
+
+		if !isCleanWord(item) {
+			continue
+		}
+
 		if _, value := allKeys[item]; !value {
 			allKeys[item] = true
 			list = append(list, item)
 		}
 	}
 	return list
+}
+
+func isCleanWord(word string) bool {
+	// Check if its just one character and a symbol
+	if len(word) == 1 {
+		if isSymbol(word) {
+			return false
+		}
+	}
+
+	if isSymbol(string(word[0])) || isSymbol(string(word[len(word)-1])) {
+		return false
+	}
+	return true
+}
+
+func isSymbol(s string) bool {
+	isStringOrNumber := regexp.MustCompile(`^[a-zA-Z0-9]+$`).MatchString(s)
+
+	return !isStringOrNumber
 }
 
 func ConfigureDepth(depth uint) uint {
