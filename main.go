@@ -33,7 +33,8 @@ func main() {
 
 	// Sort words and remove dups
 	words = domainwords.RemoveDuplicateStr(words)
-	for _, word := range words {
-		fmt.Println(word)
-	}
+
+	depth := domainwords.ConfigureDepth(flags.Level)
+
+	domainwords.HandleWords(words, depth)
 }

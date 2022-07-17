@@ -1,0 +1,6 @@
+app
+dev
+jenkins
+.
+uat
+login
