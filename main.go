@@ -31,6 +31,8 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Sort words and remove dups
+	words = domainwords.RemoveDuplicateStr(words)
 	for _, word := range words {
 		fmt.Println(word)
 	}

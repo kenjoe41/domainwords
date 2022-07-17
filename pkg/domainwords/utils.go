@@ -3,6 +3,7 @@ package domainwords
 import (
 	"bufio"
 	"os"
+	"sort"
 	"strings"
 )
 
@@ -28,4 +29,19 @@ func ReadingLines(filename string) ([]string, error) {
 		return result, err
 	}
 	return result, nil
+}
+
+func RemoveDuplicateStr(strSlice []string) []string {
+
+	sort.Strings(strSlice)
+
+	allKeys := make(map[string]bool)
+	list := []string{}
+	for _, item := range strSlice {
+		if _, value := allKeys[item]; !value {
+			allKeys[item] = true
+			list = append(list, item)
+		}
+	}
+	return list
 }
