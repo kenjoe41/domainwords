@@ -9,18 +9,21 @@ import (
 	"strings"
 )
 
-func HandleWords(originalWords []string, depth uint) {
+func HandleWords(originalWords []string, depth uint, outputChan chan string) {
 	for _, word := range originalWords {
-		fmt.Println(word) // TODO: Chan this
+		// fmt.Println(word) // TODO: Chan this
+		outputChan <- word
 	}
 
 	permutatedWords := originalWords
 	for ; depth > 1; depth-- {
-		permutatedWords = permutateWords(permutatedWords, originalWords)
+		permutatedWords = permutateWords(permutatedWords, originalWords, outputChan)
 	}
+
+	close(outputChan)
 }
 
-func permutateWords(permutatedWords []string, originalWords []string) []string {
+func permutateWords(permutatedWords []string, originalWords []string, outputChan chan string) []string {
 	var newPermutatedWords []string
 
 	for _, permutatedWord := range permutatedWords {
@@ -28,7 +31,8 @@ func permutateWords(permutatedWords []string, originalWords []string) []string {
 			newWord := word + "." + permutatedWord
 			newPermutatedWords = append(newPermutatedWords, newWord)
 
-			fmt.Println(newWord) // TODO: Chan this
+			// fmt.Println(newWord) // TODO: Chan this
+			outputChan <- newWord
 		}
 
 	}

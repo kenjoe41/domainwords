@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"sync"
 
 	"github.com/kenjoe41/domainwords/pkg/domainwords"
 	"github.com/kenjoe41/domainwords/pkg/options"
@@ -31,10 +32,22 @@ func main() {
 		os.Exit(1)
 	}
 
+	outputChan := make(chan string)
+
+	var outputWG sync.WaitGroup
+	outputWG.Add(1)
+	go func() {
+		defer outputWG.Done()
+		for permWord := range outputChan {
+			fmt.Println(permWord)
+		}
+		outputWG.Wait()
+	}()
+
 	// Sort words and remove dups
 	words = domainwords.RemoveDuplicateStr(words)
 
 	depth := domainwords.ConfigureDepth(flags.Level)
 
-	domainwords.HandleWords(words, depth)
+	domainwords.HandleWords(words, depth, outputChan)
 }
