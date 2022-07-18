@@ -9,7 +9,7 @@ type Options struct {
 
 func ScanFlags() Options {
 	wordlistPtr := flag.String("w", "", "File containing list of words.")
-	levelPtr := flag.Uint("l", 3, "Level of Permutations to do.")
+	levelPtr := flag.Uint("l", 3, "Level of Permutations to do (1-5).")
 
 	flag.Parse()
 

@@ -10,16 +10,12 @@ import (
 )
 
 func HandleWords(originalWords []string, depth uint, permutationsChan chan string, outputChan chan string) {
+
 	for _, word := range originalWords {
 		// fmt.Println(word) // TODO: Chan this
 		permutationsChan <- word
 		outputChan <- word
 	}
-
-	// permutatedWords := originalWords
-	// for ; depth > 1; depth-- {
-	// 	permutatedWords = permutateWords(permutatedWords, originalWords, outputChan)
-	// }
 
 	permutateWords(originalWords, depth, permutationsChan, outputChan)
 
@@ -31,7 +27,9 @@ func permutateWords(originalWords []string, depth uint, permutationsChan chan st
 	// var newPermutatedWords []string
 
 	for permutatedWord := range permutationsChan {
-		if strings.Count(permutatedWord, ".") == int(depth) {
+
+		// Check if this word has reached all the permutating we need to do with it.
+		if strings.Count(permutatedWord, ".") == (int(depth) - 1) {
 			continue
 		}
 
@@ -117,9 +115,9 @@ func isSymbol(s string) bool {
 func ConfigureDepth(depth uint) uint {
 	// Logic from https://github.com/Josue87/gotator
 	auxDepth := depth
-	if depth > 3 {
-		fmt.Fprintln(os.Stderr, "[-] The maximum is 3. Configuring")
-		auxDepth = 3
+	if depth > 5 {
+		fmt.Fprintln(os.Stderr, "[-] The maximum is 5. Configuring")
+		auxDepth = 5
 	} else if depth < 1 {
 		fmt.Fprintln(os.Stderr, "[-] The minimum is 1. Configuring")
 		auxDepth = 1
