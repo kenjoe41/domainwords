@@ -32,22 +32,29 @@ func main() {
 		os.Exit(1)
 	}
 
-	outputChan := make(chan string)
-
-	var outputWG sync.WaitGroup
-	outputWG.Add(1)
-	go func() {
-		defer outputWG.Done()
-		for permWord := range outputChan {
-			fmt.Println(permWord)
-		}
-		outputWG.Wait()
-	}()
+	outputChan := make(chan string, 1024)
+	permutationsChan := make(chan string, 1024)
 
 	// Sort words and remove dups
 	words = domainwords.RemoveDuplicateStr(words)
 
 	depth := domainwords.ConfigureDepth(flags.Level)
 
-	domainwords.HandleWords(words, depth, outputChan)
+	domainwords.HandleWords(words, depth, permutationsChan, outputChan)
+
+	var outputWG sync.WaitGroup
+	outputWG.Add(1)
+	go func() {
+		defer outputWG.Done()
+		// defer close(permutationsChan)
+
+		for permWord := range outputChan {
+			fmt.Println(permWord)
+		}
+
+	}()
+	outputWG.Wait()
+
+	close(outputChan)
+	close(permutationsChan)
 }
