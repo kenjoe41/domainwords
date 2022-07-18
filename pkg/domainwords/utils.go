@@ -9,34 +9,45 @@ import (
 	"strings"
 )
 
-func HandleWords(originalWords []string, depth uint, outputChan chan string) {
+func HandleWords(originalWords []string, depth uint, permutationsChan chan string, outputChan chan string) {
 	for _, word := range originalWords {
 		// fmt.Println(word) // TODO: Chan this
+		permutationsChan <- word
 		outputChan <- word
 	}
 
-	permutatedWords := originalWords
-	for ; depth > 1; depth-- {
-		permutatedWords = permutateWords(permutatedWords, originalWords, outputChan)
-	}
+	// permutatedWords := originalWords
+	// for ; depth > 1; depth-- {
+	// 	permutatedWords = permutateWords(permutatedWords, originalWords, outputChan)
+	// }
 
-	close(outputChan)
+	permutateWords(originalWords, depth, permutationsChan, outputChan)
+
+	outputChan <- ""
+
 }
 
-func permutateWords(permutatedWords []string, originalWords []string, outputChan chan string) []string {
-	var newPermutatedWords []string
+func permutateWords(originalWords []string, depth uint, permutationsChan chan string, outputChan chan string) {
+	// var newPermutatedWords []string
 
-	for _, permutatedWord := range permutatedWords {
+	for permutatedWord := range permutationsChan {
+		if strings.Count(permutatedWord, ".") == int(depth) {
+			continue
+		}
+
 		for _, word := range originalWords {
 			newWord := word + "." + permutatedWord
-			newPermutatedWords = append(newPermutatedWords, newWord)
+			// newPermutatedWords = append(newPermutatedWords, newWord)
 
-			// fmt.Println(newWord) // TODO: Chan this
 			outputChan <- newWord
+			// permutationsChan <- newWord
+
+			if strings.Count(newWord, ".") < int(depth) {
+				permutationsChan <- newWord
+			}
 		}
 
 	}
-	return newPermutatedWords
 }
 
 func ReadingLines(filename string) ([]string, error) {
