@@ -14,6 +14,7 @@ var (
 )
 
 func main() {
+
 	flags := options.ScanFlags()
 
 	if flags.Wordlist == "" {
@@ -33,30 +34,25 @@ func main() {
 	}
 
 	outputChan := make(chan string, 1024)
-	permutationsChan := make(chan string, 1024)
 
 	var outputWG sync.WaitGroup
 	outputWG.Add(1)
-	go func(outputChan chan string) {
+	go func() {
 		defer outputWG.Done()
-		// defer close(permutationsChan)
 
 		for permWord := range outputChan {
 			fmt.Println(permWord)
 		}
 
-	}(outputChan)
+	}()
 
 	// Sort words and remove dups
 	words = domainwords.RemoveDuplicateStr(words)
 
 	depth := domainwords.ConfigureDepth(flags.Level)
 
-	domainwords.HandleWords(words, depth, permutationsChan, outputChan)
+	domainwords.HandleWords(words, depth, outputChan)
 
 	outputWG.Wait()
-
-	close(outputChan)
-	close(permutationsChan)
 
 }

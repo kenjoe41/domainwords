@@ -9,43 +9,32 @@ import (
 	"strings"
 )
 
-func HandleWords(originalWords []string, depth uint, permutationsChan chan string, outputChan chan string) {
+func HandleWords(originalWords []string, depth uint, outputChan chan string) {
 
 	for _, word := range originalWords {
-		// fmt.Println(word) // TODO: Chan this
-		permutationsChan <- word
 		outputChan <- word
 	}
 
-	permutateWords(originalWords, depth, permutationsChan, outputChan)
+	permutatedWords := originalWords
+	for ; depth > 1; depth-- {
+		permutatedWords = permutateWords(permutatedWords, originalWords, outputChan)
+	}
 
-	outputChan <- ""
-
+	close(outputChan)
 }
+func permutateWords(permutatedWords []string, originalWords []string, outputChan chan string) []string {
+	var newPermutatedWords []string
 
-func permutateWords(originalWords []string, depth uint, permutationsChan chan string, outputChan chan string) {
-	// var newPermutatedWords []string
-
-	for permutatedWord := range permutationsChan {
-
-		// Check if this word has reached all the permutating we need to do with it.
-		if strings.Count(permutatedWord, ".") == (int(depth) - 1) {
-			continue
-		}
-
+	for _, permutatedWord := range permutatedWords {
 		for _, word := range originalWords {
 			newWord := word + "." + permutatedWord
-			// newPermutatedWords = append(newPermutatedWords, newWord)
+			newPermutatedWords = append(newPermutatedWords, newWord)
 
 			outputChan <- newWord
-			// permutationsChan <- newWord
-
-			if strings.Count(newWord, ".") < int(depth) {
-				permutationsChan <- newWord
-			}
 		}
 
 	}
+	return newPermutatedWords
 }
 
 func ReadingLines(filename string) ([]string, error) {
