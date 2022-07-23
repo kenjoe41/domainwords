@@ -144,8 +144,23 @@ func ChaoticShuffle(wordsSlice []string) []string {
 	return wordsSlice
 }
 
-func WriteTempFile(words []string) (os.File, error) {
+func WriteTempChunks(chunks [][]string) []os.File {
+	var chunkfiles []os.File
 	tmpDir := os.TempDir()
+
+	for _, chunk := range chunks {
+		chunkfile, err := writeTempFile(chunk, tmpDir)
+		if err != nil {
+			continue
+		}
+		chunkfiles = append(chunkfiles, chunkfile)
+	}
+
+	return chunkfiles
+
+}
+
+func writeTempFile(words []string, tmpDir string) (os.File, error) {
 	tempfile, err := ioutil.TempFile(tmpDir, "domainwords")
 	if err != nil {
 		return *tempfile, err

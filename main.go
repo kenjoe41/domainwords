@@ -1,9 +1,7 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
-	"io"
 	"os"
 	"sync"
 
@@ -52,60 +50,34 @@ func main() {
 
 	for iter := 0; iter < int(flags.Iterations); iter++ {
 
+		// Shuffle and randomise the words
 		chaoticSlice := domainwords.ChaoticShuffle(words)
 
+		// Break up into chunks
+		tempchunks := domainwords.ChunkSlice(chaoticSlice, int(flags.ChunkSize))
+
 		// Write Shuffled words to Temp file
-		tempWordsFile, err := domainwords.WriteTempFile(chaoticSlice)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
+		tempWordsFiles := domainwords.WriteTempChunks(tempchunks)
+		if len(tempWordsFiles) == 0 {
+			fmt.Fprintln(os.Stderr, "Errors while writing chunk files.")
 			os.Exit(1)
 		}
 
-		counter := 0
-		var chunkedwords []string
+		// Lets work on one chunk at a time.
+		for _, tempChunkFile := range tempWordsFiles {
 
-		tfile, err := os.Open(tempWordsFile.Name())
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			os.Exit(1)
-		}
-		defer tfile.Close()
-
-		filereader := bufio.NewReader(tfile)
-
-		// Awfully inefficient, still waiting for beter ideas.
-		for {
-			word, _, err := filereader.ReadLine()
+			chunkedwords, err := domainwords.ReadingLines(tempChunkFile.Name())
 			if err != nil {
-				if err == io.EOF {
-					if chunkedwords != nil {
-
-						domainwords.HandleWords(chunkedwords, depth, outputChan)
-
-					}
-
-					break
-				}
-
 				fmt.Fprintln(os.Stderr, err)
-				os.Exit(1)
+				os.RemoveAll(tempChunkFile.Name())
+				continue
+
 			}
 
-			counter++
-			chunkedwords = append(chunkedwords, string(word))
+			domainwords.HandleWords(chunkedwords, depth, outputChan)
 
-			if counter == int(flags.ChunkSize) {
-				domainwords.HandleWords(chunkedwords, depth, outputChan)
-
-				// reset counter
-				counter = 0
-				// Reset chunk
-				chunkedwords = []string{}
-			}
-
+			os.RemoveAll(tempChunkFile.Name())
 		}
-
-		os.RemoveAll(tempWordsFile.Name())
 
 	}
 
