@@ -77,9 +77,13 @@ func main() {
 			domainwords.HandleWords(chunkedwords, depth, outputChan)
 
 			os.RemoveAll(tempChunkFile.Name())
+			if err != nil {
+				continue
+			}
 		}
 
 	}
+	os.RemoveAll(os.TempDir() + "/domainwords*")
 
 	close(outputChan)
 	outputWG.Wait()
