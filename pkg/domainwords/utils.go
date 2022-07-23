@@ -3,6 +3,7 @@ package domainwords
 import (
 	"bufio"
 	"fmt"
+	"io/ioutil"
 	"math/rand"
 	"os"
 	"regexp"
@@ -141,4 +142,28 @@ func ChaoticShuffle(wordsSlice []string) []string {
 	})
 
 	return wordsSlice
+}
+
+func WriteTempFile(words []string) (os.File, error) {
+	tmpDir := os.TempDir()
+	tempfile, err := ioutil.TempFile(tmpDir, "domainwords")
+	if err != nil {
+		return *tempfile, err
+	}
+
+	wordsfile, err := os.OpenFile(tempfile.Name(), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return *wordsfile, err
+	}
+
+	datawriter := bufio.NewWriter(wordsfile)
+
+	for _, data := range words {
+		_, _ = datawriter.WriteString(data + "\n")
+	}
+
+	datawriter.Flush()
+	wordsfile.Close()
+
+	return *wordsfile, nil
 }
