@@ -1,21 +1,27 @@
 package options
 
-import "flag"
+import flag "github.com/spf13/pflag"
 
 type Options struct {
-	Wordlist string
-	Level    uint
+	Wordlist   string
+	Level      uint
+	ChunkSize  uint
+	Iterations uint
 }
 
 func ScanFlags() Options {
-	wordlistPtr := flag.String("w", "", "File containing list of words.")
-	levelPtr := flag.Uint("l", 3, "Level of Permutations to do (1-5).")
+	wordlistPtr := flag.StringP("wordlist", "w", "", "File containing list of words.")
+	levelPtr := flag.UintP("level", "l", 3, "Level of Permutations to do (1-5).")
+	ChuckSizePtr := flag.UintP("chuck", "c", 200000, "Chuck size per slice.")
+	IterationsPtr := flag.UintP("iterations", "i", 10, "Number of Iterations of shuffling, chunking and permutation [For BIG wordlists].")
 
 	flag.Parse()
 
 	optFlags := Options{
 		*wordlistPtr,
 		*levelPtr,
+		*ChuckSizePtr,
+		*IterationsPtr,
 	}
 
 	return optFlags

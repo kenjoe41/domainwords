@@ -3,10 +3,12 @@ package domainwords
 import (
 	"bufio"
 	"fmt"
+	"math/rand"
 	"os"
 	"regexp"
 	"sort"
 	"strings"
+	"time"
 )
 
 func HandleWords(originalWords []string, depth uint, outputChan chan string) {
@@ -20,7 +22,6 @@ func HandleWords(originalWords []string, depth uint, outputChan chan string) {
 		permutatedWords = permutateWords(permutatedWords, originalWords, outputChan)
 	}
 
-	close(outputChan)
 }
 func permutateWords(permutatedWords []string, originalWords []string, outputChan chan string) []string {
 	var newPermutatedWords []string
@@ -112,4 +113,32 @@ func ConfigureDepth(depth uint) uint {
 		auxDepth = 1
 	}
 	return auxDepth
+}
+
+func ChunkSlice(wordsSlice []string, chunkSize int) [][]string {
+	var chunks [][]string
+	for {
+		if len(wordsSlice) == 0 {
+			break
+		}
+
+		if len(wordsSlice) < chunkSize {
+			chunkSize = len(wordsSlice)
+		}
+
+		chunks = append(chunks, wordsSlice[0:chunkSize])
+		wordsSlice = wordsSlice[chunkSize:]
+	}
+
+	return chunks
+}
+
+func ChaoticShuffle(wordsSlice []string) []string {
+	rand.Seed(time.Now().UnixNano())
+
+	rand.Shuffle(len(wordsSlice), func(i, j int) {
+		wordsSlice[i], wordsSlice[j] = wordsSlice[j], wordsSlice[i]
+	})
+
+	return wordsSlice
 }

@@ -33,6 +33,10 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Sort words and remove dups
+	words = domainwords.RemoveDuplicateStr(words)
+	depth := domainwords.ConfigureDepth(flags.Level)
+
 	outputChan := make(chan string, 1024)
 
 	var outputWG sync.WaitGroup
@@ -46,13 +50,27 @@ func main() {
 
 	}()
 
-	// Sort words and remove dups
-	words = domainwords.RemoveDuplicateStr(words)
+	// With depth=1 or few words < chuckSize, we have all the different iterations there is.
+	if depth == 1 || len(words) < int(flags.ChunkSize) {
+		flags.Iterations = 1
+	}
 
-	depth := domainwords.ConfigureDepth(flags.Level)
+	for iter := 0; iter < int(flags.Iterations); iter++ {
 
-	domainwords.HandleWords(words, depth, outputChan)
+		chaoticSlice := domainwords.ChaoticShuffle(words)
 
+		// Divide chaoticSlice into chunks and permutate each chunk.
+		// TODO: Test where we should keep this in memory of write it out to temp-files
+		dvWordSlices := domainwords.ChunkSlice(chaoticSlice, int(flags.ChunkSize))
+
+		for _, dvWordSlice := range dvWordSlices {
+
+			domainwords.HandleWords(dvWordSlice, depth, outputChan)
+
+		}
+	}
+
+	close(outputChan)
 	outputWG.Wait()
 
 }
