@@ -148,6 +148,9 @@ func WriteTempChunks(chunks [][]string) []os.File {
 	var chunkfiles []os.File
 	tmpDir := os.TempDir()
 
+	// Clean up any residue
+	os.RemoveAll(os.TempDir() + "/domainwords*")
+
 	for _, chunk := range chunks {
 		chunkfile, err := writeTempFile(chunk, tmpDir)
 		if err != nil {
