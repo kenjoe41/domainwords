@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"os"
 	"sync"
@@ -9,6 +10,8 @@ import (
 	"github.com/kenjoe41/domainwords/pkg/options"
 )
 
+// TODO: Take Already known subdomains file, Hello goSubsWordlist
+
 var (
 	words []string
 )
@@ -16,26 +19,41 @@ var (
 func main() {
 
 	flags := options.ScanFlags()
+	isStdin := false
 
 	if flags.Wordlist == "" {
 		// No file provided,
-		// TODO: Read from the commandline
+		isStdin = true
 
-		fmt.Fprintln(os.Stderr, "[-] No wordlist provided.")
-		options.Usage()
-		os.Exit(1)
+		// Check for stdin input
+		stat, _ := os.Stdin.Stat()
+		if (stat.Mode() & os.ModeCharDevice) != 0 {
+			fmt.Fprintln(os.Stderr, "No words/text detected. Hint: cat wordlist.txt | domainwords")
+			os.Exit(1)
+		}
+
+	} else {
+
+		var err error
+		words, err = domainwords.ReadingLines(flags.Wordlist)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
 	}
 
-	var err error
-	words, err = domainwords.ReadingLines(flags.Wordlist)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
-	}
+	if isStdin {
+		sc := bufio.NewScanner(os.Stdin)
+		for sc.Scan() {
+			words = append(words, sc.Text())
+		}
 
-	// Sort words and remove dups
-	words = domainwords.RemoveDuplicateStr(words)
-	depth := domainwords.ConfigureDepth(flags.Level)
+		// check there were no errors reading stdin (unlikely)
+		if err := sc.Err(); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+	}
 
 	outputChan := make(chan string, 1024)
 
@@ -49,6 +67,10 @@ func main() {
 		}
 
 	}()
+
+	// Sort words and remove dups
+	words = domainwords.RemoveDuplicateStr(words)
+	depth := domainwords.ConfigureDepth(flags.Level)
 
 	// With depth=1 or few words < chuckSize, we have all the different iterations there is.
 	if depth == 1 || len(words) < int(flags.ChunkSize) {
