@@ -26,7 +26,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	outputChan := make(chan string, 1024)
+	outputChan := make(chan string, 10240)
 
 	var outputWG sync.WaitGroup
 	outputWG.Add(1)

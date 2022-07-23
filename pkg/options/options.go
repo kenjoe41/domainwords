@@ -12,7 +12,7 @@ type Options struct {
 func ScanFlags() Options {
 	wordlistPtr := flag.StringP("wordlist", "w", "", "File containing list of words. Or cat wordlist.txt | domainwords")
 	levelPtr := flag.UintP("level", "l", 3, "Level of Permutations to do (1-5).")
-	ChuckSizePtr := flag.UintP("chuck", "c", 200000, "Chuck size per slice.")
+	ChuckSizePtr := flag.UintP("chuck", "c", 20000, "Chuck size per slice.")
 	IterationsPtr := flag.UintP("iterations", "i", 10, "Number of Iterations of shuffling, chunking and permutation [For BIG wordlists].")
 
 	flag.Parse()
