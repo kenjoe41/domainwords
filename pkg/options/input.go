@@ -3,6 +3,7 @@ package options
 import (
 	"bufio"
 	"os"
+	"strings"
 
 	"github.com/kenjoe41/domainwords/pkg/domainwords"
 )
@@ -22,7 +23,7 @@ func HandleInput(flags Options) ([]string, error) {
 
 		sc := bufio.NewScanner(os.Stdin)
 		for sc.Scan() {
-			words = append(words, sc.Text())
+			words = append(words, strings.TrimSpace(sc.Text()))
 		}
 
 		// check there were no errors reading stdin (unlikely)
