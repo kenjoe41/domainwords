@@ -227,7 +227,6 @@ func syncResultsToGitHub(results []string) error {
 
 	// If the content exists and the SHA matches, no need to update
 	if content != nil && *content.SHA == newContentSHAString {
-		fmt.Println("same same")
 		return nil
 	}
 
