@@ -2,14 +2,25 @@ package domainwords
 
 import (
 	"bufio"
+	"context"
+	"crypto/sha1"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"math/rand"
 	"os"
 	"regexp"
-	"sort"
+
+	"github.com/google/go-github/v61/github"
+	"golang.org/x/oauth2"
+
 	"strings"
-	"time"
+)
+
+var (
+	owner = os.Getenv("GITHUB_USERNAME")
+	token = os.Getenv("GITHUB_TOKEN")
+	repo  = "workflows"
+	path  = "permutations.txt"
 )
 
 func HandleWords(originalWords []string, depth uint, outputChan chan string) {
@@ -39,52 +50,55 @@ func permutateWords(permutatedWords []string, originalWords []string, outputChan
 	return newPermutatedWords
 }
 
-func ReadingLines(filename string) ([]string, error) {
-	// Credits to https://github.com/j3ssie/str-replace
-	var result []string
+func ReadLines(filename string) ([]string, error) {
+	var lines []string
+
 	file, err := os.Open(filename)
 	if err != nil {
-		return result, err
+		return nil, err
 	}
 	defer file.Close()
 
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		val := strings.ToLower(strings.TrimSpace(scanner.Text()))
-		if val == "" {
-			continue
+	// Use buffered reader for better performance
+	reader := bufio.NewReader(file)
+
+	for {
+		line, err := reader.ReadString('\n')
+		if err == io.EOF {
+			break
 		}
-		result = append(result, val)
+		if err != nil {
+			return lines, err
+		}
+		line = strings.TrimSpace(line)
+		if line != "" {
+			lines = append(lines, strings.ToLower(line))
+		}
 	}
 
-	if err := scanner.Err(); err != nil {
-		return result, err
-	}
-	return result, nil
+	return lines, nil
 }
 
 func RemoveDuplicateStr(strSlice []string) []string {
+	// Create a set to store unique strings
+	seen := make(map[string]struct{})
+	result := make([]string, 0, len(strSlice))
 
-	sort.Strings(strSlice)
-
-	allKeys := make(map[string]bool)
-	list := []string{}
-	for _, item := range strSlice {
-
-		if !isCleanWord(item) {
-			continue
-		}
-
-		if _, value := allKeys[item]; !value {
-			allKeys[item] = true
-			list = append(list, item)
+	// Iterate over the slice and add each unique string to the set
+	for _, str := range strSlice {
+		if isCleanWord(str) {
+			if _, ok := seen[str]; !ok {
+				seen[str] = struct{}{}
+				result = append(result, str)
+			}
 		}
 	}
-	return list
+
+	return result
 }
 
 func isCleanWord(word string) bool {
-	// Check if its just one character and a symbol
+	// Check if its just one character and a symbol, or word's pre- / suffix is a symbol.
 	if len(word) == 1 {
 		if isSymbol(word) {
 			return false
@@ -135,7 +149,6 @@ func ChunkSlice(wordsSlice []string, chunkSize int) [][]string {
 }
 
 func ChaoticShuffle(wordsSlice []string) []string {
-	rand.Seed(time.Now().UnixNano())
 
 	rand.Shuffle(len(wordsSlice), func(i, j int) {
 		wordsSlice[i], wordsSlice[j] = wordsSlice[j], wordsSlice[i]
@@ -149,7 +162,7 @@ func WriteTempChunks(chunks [][]string) []os.File {
 	tmpDir := os.TempDir()
 
 	// Clean up any residue
-	os.RemoveAll(os.TempDir() + "/domainwords*")
+	os.RemoveAll(tmpDir + "/domainwords*")
 
 	for _, chunk := range chunks {
 		chunkfile, err := writeTempFile(chunk, tmpDir)
@@ -164,7 +177,7 @@ func WriteTempChunks(chunks [][]string) []os.File {
 }
 
 func writeTempFile(words []string, tmpDir string) (os.File, error) {
-	tempfile, err := ioutil.TempFile(tmpDir, "domainwords")
+	tempfile, err := os.CreateTemp(tmpDir, "domainwords")
 	if err != nil {
 		return *tempfile, err
 	}
@@ -184,4 +197,50 @@ func writeTempFile(words []string, tmpDir string) (os.File, error) {
 	wordsfile.Close()
 
 	return *wordsfile, nil
+}
+
+// SyncResultsToGitHub syncs the provided results to a GitHub repository.
+func syncResultsToGitHub(results []string) error {
+
+	ctx := context.Background()
+	ts := oauth2.StaticTokenSource(
+		&oauth2.Token{AccessToken: token},
+	)
+	tc := oauth2.NewClient(ctx, ts)
+
+	client := github.NewClient(tc)
+
+	// Retrieve existing content
+	content, _, _, err := client.Repositories.GetContents(ctx, owner, repo, path, nil)
+	if err != nil {
+
+		return err
+	}
+
+	// Convert results to string
+	newContent := strings.Join(results, "\n")
+
+	// Calculate SHA256 hash of the new content
+	hasher := sha1.New()
+	hasher.Write([]byte(newContent))
+	newContentSHAString := fmt.Sprintf("%x", hasher.Sum(nil))
+
+	// If the content exists and the SHA matches, no need to update
+	if content != nil && *content.SHA == newContentSHAString {
+		fmt.Println("same same")
+		return nil
+	}
+
+	// Create or update the file
+	_, _, err = client.Repositories.UpdateFile(ctx, owner, repo, path, &github.RepositoryContentFileOptions{
+		Message:   github.String("Update file"),
+		Content:   []byte(newContent),
+		SHA:       content.SHA,
+		Committer: &github.CommitAuthor{Name: github.String("kenjoe41"), Email: github.String("kenjoe41.nafuti@gmail.com")},
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

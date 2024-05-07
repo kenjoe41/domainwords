@@ -34,7 +34,7 @@ func HandleInput(flags Options) ([]string, error) {
 	} else {
 
 		var err error
-		words, err = domainwords.ReadingLines(flags.Wordlist)
+		words, err = domainwords.ReadLines(flags.Wordlist)
 		if err != nil {
 			return nil, err
 		}

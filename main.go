@@ -3,13 +3,10 @@ package main
 import (
 	"fmt"
 	"os"
-	"sync"
 
 	"github.com/kenjoe41/domainwords/pkg/domainwords"
 	"github.com/kenjoe41/domainwords/pkg/options"
 )
-
-// TODO: Take Already known subdomains file, Hello goSubsWordlist
 
 var (
 	words []string
@@ -27,16 +24,8 @@ func main() {
 	}
 
 	outputChan := make(chan string, 10240)
-
-	var outputWG sync.WaitGroup
-	outputWG.Add(1)
-	go func() {
-
-		for permWord := range outputChan {
-			fmt.Println(permWord)
-		}
-		outputWG.Done()
-	}()
+	outputFilePath := "test/output.txt" // TODO: move to configuration file or flags
+	domainwords.HandleOutput(outputChan, outputFilePath)
 
 	// Sort words and remove dups
 	words = domainwords.RemoveDuplicateStr(words)
@@ -66,7 +55,7 @@ func main() {
 		// Lets work on one chunk at a time.
 		for _, tempChunkFile := range tempWordsFiles {
 
-			chunkedwords, err := domainwords.ReadingLines(tempChunkFile.Name())
+			chunkedwords, err := domainwords.ReadLines(tempChunkFile.Name())
 			if err != nil {
 				fmt.Fprintln(os.Stderr, err)
 				os.RemoveAll(tempChunkFile.Name())
@@ -76,7 +65,7 @@ func main() {
 
 			domainwords.HandleWords(chunkedwords, depth, outputChan)
 
-			os.RemoveAll(tempChunkFile.Name())
+			err = os.RemoveAll(tempChunkFile.Name())
 			if err != nil {
 				continue
 			}
@@ -86,6 +75,6 @@ func main() {
 	os.RemoveAll(os.TempDir() + "/domainwords*")
 
 	close(outputChan)
-	outputWG.Wait()
+	domainwords.WaitOutputCompletion() // Wait for the output goroutine to finish
 
 }
