@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	"log"
 	"os"
 
 	"github.com/kenjoe41/domainwords/pkg/domainwords"
@@ -13,68 +13,76 @@ var (
 )
 
 func main() {
+	// Create a logger
+	logger := log.New(os.Stderr, "[DomainWords] ", log.LstdFlags)
 
+	// Parsing command-line flags
 	flags := options.ScanFlags()
 
+	// Handle input (stdin or wordlist)
 	var err error
 	words, err = options.HandleInput(flags)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+		logger.Fatalf("Error handling input: %v", err)
 	}
 
+	// Channel for processing output
 	outputChan := make(chan string, 10240)
-	outputFilePath := "test/output.txt" // TODO: move to configuration file or flags
+
+	// Move the outputFilePath to flags
+	outputFilePath := flags.OutputFile
 	domainwords.HandleOutput(outputChan, outputFilePath)
 
-	// Sort words and remove dups
+	// Sort words and remove duplicates
 	words = domainwords.RemoveDuplicateStr(words)
 
+	// Configure depth based on flags
 	depth := domainwords.ConfigureDepth(flags.Level)
 
-	// With depth=1 or few words < chuckSize, we have all the different iterations there is.
+	// Check if iterations should be minimized
 	if depth == 1 || len(words) < int(flags.ChunkSize) {
 		flags.Iterations = 1
 	}
 
 	for iter := 0; iter < int(flags.Iterations); iter++ {
-
-		// Shuffle and randomise the words
+		// Shuffle the words
 		chaoticSlice := domainwords.ChaoticShuffle(words)
 
-		// Break up into chunks
-		tempchunks := domainwords.ChunkSlice(chaoticSlice, int(flags.ChunkSize))
+		// Break into chunks
+		tempChunks := domainwords.ChunkSlice(chaoticSlice, int(flags.ChunkSize))
 
-		// Write Shuffled words to Temp file
-		tempWordsFiles := domainwords.WriteTempChunks(tempchunks)
+		// Write shuffled words to temp files
+		tempWordsFiles := domainwords.WriteTempChunks(tempChunks)
 		if len(tempWordsFiles) == 0 {
-			fmt.Fprintln(os.Stderr, "Errors while writing chunk files.")
-			os.Exit(1)
+			logger.Fatalf("Errors while writing chunk files.")
 		}
 
-		// Lets work on one chunk at a time.
+		// Process each chunk
 		for _, tempChunkFile := range tempWordsFiles {
-
-			chunkedwords, err := domainwords.ReadLines(tempChunkFile.Name())
+			chunkedWords, err := domainwords.ReadLines(tempChunkFile.Name())
 			if err != nil {
-				fmt.Fprintln(os.Stderr, err)
+				logger.Printf("Error reading lines from file: %v", err)
 				os.RemoveAll(tempChunkFile.Name())
 				continue
-
 			}
 
-			domainwords.HandleWords(chunkedwords, depth, outputChan)
+			// Process the chunked words and write to output channel
+			domainwords.HandleWords(chunkedWords, depth, outputChan)
 
+			// Clean up temp files
 			err = os.RemoveAll(tempChunkFile.Name())
 			if err != nil {
-				continue
+				logger.Printf("Error removing temp file: %v", err)
 			}
 		}
-
 	}
+
+	// Clean up remaining temp files and close output channel
 	os.RemoveAll(os.TempDir() + "/domainwords*")
-
 	close(outputChan)
-	domainwords.WaitOutputCompletion() // Wait for the output goroutine to finish
 
+	// Wait for output to be fully written
+	domainwords.WaitOutputCompletion()
+
+	logger.Println("Processing complete.")
 }

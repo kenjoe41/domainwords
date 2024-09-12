@@ -1,3 +1,5 @@
+www
+admin
 app
 dev
 jenkins

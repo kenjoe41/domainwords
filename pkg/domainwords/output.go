@@ -2,7 +2,9 @@ package domainwords
 
 import (
 	"fmt"
+	"log"
 	"os"
+	"path/filepath"
 	"sort"
 	"sync"
 )
@@ -11,50 +13,59 @@ var (
 	outputWG sync.WaitGroup
 )
 
+// HandleOutput manages the output of the words being processed.
 func HandleOutput(outputChan <-chan string, filePath string) {
 	outputWG.Add(1)
+
+	// Get the directory from the file path
+	dir := filepath.Dir(filePath)
+
+	// Create the directory (and all parent directories) if they don't exist
+	err := os.MkdirAll(dir, os.ModePerm) // os.ModePerm is 0777 by default
+	if err != nil {
+		log.Fatalf("Error creating directories: %v", err)
+		return
+	}
 
 	// Open the file for writing
 	file, err := os.Create(filePath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error opening file: %v\n", err)
+		log.Fatalf("Error opening file: %v", err)
 		return
 	}
 
 	go func() {
-		var results []string // Slice to store results
+		var results []string
 
 		defer func() {
 			// Close the file when the goroutine exits
 			if err := file.Close(); err != nil {
-				fmt.Fprintf(os.Stderr, "error closing file: %v\n", err)
+				log.Printf("Error closing file: %v", err)
 			}
 			outputWG.Done()
-
 		}()
 
 		for permWord := range outputChan {
-			// Print to console
+			// Print to console (can be removed if not needed)
 			fmt.Println(permWord)
 
 			// Write to file
 			if _, err := fmt.Fprintln(file, permWord); err != nil {
-				fmt.Fprintf(os.Stderr, "error writing to file: %v\n", err)
-				return // Stop writing to file if an error occurs
+				log.Printf("Error writing to file: %v", err)
+				return
 			}
-			// Store result in the slice
 			results = append(results, permWord)
 		}
 
+		// Sort and sync results to GitHub
 		sort.Strings(results)
-		// fmt.Println("Preparing to sync to Github.")
-		if err := syncResultsToGitHub(results); err != nil {
-			fmt.Fprintf(os.Stderr, "error syncing file to GitHub: %v\n", err)
+		if err := SyncResultsToGitHub(results); err != nil {
+			log.Printf("Error syncing results to GitHub: %v", err)
 		}
 	}()
-
 }
 
+// WaitOutputCompletion waits for output to be fully processed.
 func WaitOutputCompletion() {
 	outputWG.Wait()
 }

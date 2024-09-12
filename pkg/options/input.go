@@ -8,16 +8,14 @@ import (
 	"github.com/kenjoe41/domainwords/pkg/domainwords"
 )
 
+// HandleInput processes the input, either from stdin or from a wordlist file.
 func HandleInput(flags Options) ([]string, error) {
-
 	var words []string
 
 	if flags.Wordlist == "" {
-		// No file provided,
-
-		// Check for stdin input
+		// No file provided, check for stdin input
 		stat, err := os.Stdin.Stat()
-		if (stat.Mode() & os.ModeCharDevice) != 0 {
+		if err != nil || (stat.Mode()&os.ModeCharDevice) != 0 {
 			return nil, err
 		}
 
@@ -26,13 +24,11 @@ func HandleInput(flags Options) ([]string, error) {
 			words = append(words, strings.TrimSpace(sc.Text()))
 		}
 
-		// check there were no errors reading stdin (unlikely)
 		if err := sc.Err(); err != nil {
 			return nil, err
 		}
 
 	} else {
-
 		var err error
 		words, err = domainwords.ReadLines(flags.Wordlist)
 		if err != nil {
