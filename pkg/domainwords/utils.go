@@ -95,12 +95,23 @@ func RemoveDuplicateStr(strSlice []string) []string {
 
 // isCleanWord checks if a word is valid (no single characters or symbols at the start or end).
 func isCleanWord(word string) bool {
-	if len(word) == 1 && isSymbol(word) {
+	// Check if the word is empty
+	if len(word) == 0 {
 		return false
 	}
+
+	// Check if it's just one character and a symbol
+	if len(word) == 1 {
+		if isSymbol(word) {
+			return false
+		}
+	}
+
+	// Check if the word's prefix or suffix is a symbol
 	if isSymbol(string(word[0])) || isSymbol(string(word[len(word)-1])) {
 		return false
 	}
+
 	return true
 }
 
