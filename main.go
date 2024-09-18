@@ -31,7 +31,7 @@ func main() {
 
 	// Move the outputFilePath to flags
 	outputFilePath := flags.OutputFile
-	domainwords.HandleOutput(outputChan, outputFilePath)
+	domainwords.HandleOutput(outputChan, outputFilePath, flags.Sync)
 
 	// Sort words and remove duplicates
 	words = domainwords.RemoveDuplicateStr(words)
