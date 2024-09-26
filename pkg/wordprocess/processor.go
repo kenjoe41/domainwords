@@ -8,7 +8,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/edsrzf/mmap-go" // Assuming you are using mmap-go package
+	"github.com/edsrzf/mmap-go"
 	"github.com/kenjoe41/domainwords/pkg/domainwords"
 )
 
@@ -28,7 +28,6 @@ func ProcessChunksConcurrently(tempWordsFiles []os.File, outputChan chan string,
 				continue
 			}
 
-			logger.Fatalf("We have %d words, %v", len(chunkedWords), chunkedWords)
 			chunkChan <- chunkedWords
 
 			// Clean up temp file after processing
@@ -54,8 +53,33 @@ func ProcessChunksConcurrently(tempWordsFiles []os.File, outputChan chan string,
 	return nil
 }
 
+// ProcessChunksSequentially processes wordlist chunks one at a time.
+func ProcessChunksSequentially(tempWordsFiles []os.File, outputChan chan string, depth uint, logger *log.Logger) error {
+	for _, tempChunkFile := range tempWordsFiles {
+		// Read lines from the current chunk file
+		chunkedWords, err := readLinesWithMmap(tempChunkFile.Name())
+		if err != nil {
+			logger.Printf("Error reading lines from file: %v", err)
+			_ = os.RemoveAll(tempChunkFile.Name()) // Clean up on error
+			continue
+		}
+
+		// Process the chunk
+		processChunk(chunkedWords, depth, outputChan)
+
+		// Clean up temp file after processing
+		err = os.RemoveAll(tempChunkFile.Name())
+		if err != nil {
+			logger.Printf("Error removing temp file: %v", err)
+		}
+	}
+
+	return nil
+}
+
 // processChunk handles permutations for a given chunk and sends results to outputChan.
 func processChunk(originalWords []string, depth uint, outputChan chan string) {
+
 	// Send original words to the output channel
 	for _, word := range originalWords {
 		outputChan <- word
@@ -112,7 +136,7 @@ func readLinesWithMmap(filePath string) ([]string, error) {
 	return splitIntoWords(string(data)), nil
 }
 
-// splitIntoWords splits the input data into words by new lines (or other delimiters).
+// splitIntoWords splits the input data into words by new lines.
 func splitIntoWords(data string) []string {
 	// Assuming the words are newline-separated.
 	words := strings.Split(data, "\n")

@@ -4,6 +4,7 @@ import (
 	"log"
 	"os"
 	"runtime"
+	"sync"
 
 	"github.com/kenjoe41/domainwords/pkg/domainwords"
 	"github.com/kenjoe41/domainwords/pkg/input"
@@ -29,10 +30,16 @@ func main() {
 
 	// Set up output channel and buffer size dynamically
 	outputChan := make(chan string, calculateBufferSize(flags.Wordlist))
-	defer close(outputChan)
 
 	// Handle output in a separate goroutine
-	go output.HandleOutput(outputChan, flags.OutputFile)
+	var outputWG sync.WaitGroup
+	outputWG.Add(1)
+	go func() {
+		if err := output.HandleOutput(outputChan, flags.OutputFile); err != nil {
+			logger.Fatalf("Error writing output: %v", err)
+		}
+		outputWG.Done()
+	}()
 
 	// Sort words and remove duplicates
 	logger.Println("Removing duplicates from input wordlist")
@@ -74,9 +81,11 @@ func main() {
 		wordprocess.ProcessChunksConcurrently(tempWordsFiles, outputChan, flags.Level, logger)
 
 	}
-	// Clean up remaining temp files and close output channel
+	// Clean up remaining temp files and wait for output channel
 	os.RemoveAll(os.TempDir() + "/domainwords*")
 	close(outputChan)
+
+	outputWG.Wait()
 
 	logger.Println("Processing complete.")
 }

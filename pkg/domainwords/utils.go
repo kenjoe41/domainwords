@@ -10,33 +10,6 @@ import (
 	"sync"
 )
 
-// HandleWords manages word permutations up to the specified depth.
-func HandleWords(originalWords []string, depth uint, outputChan chan string) {
-	for _, word := range originalWords {
-		outputChan <- word
-	}
-
-	permutatedWords := originalWords
-	for depth > 1 {
-		permutatedWords = permutateWords(permutatedWords, originalWords, outputChan)
-		depth--
-	}
-}
-
-// permutateWords generates permutations and sends them to the output channel.
-func permutateWords(permutatedWords, originalWords []string, outputChan chan string) []string {
-	var newPermutatedWords []string
-
-	for _, permutatedWord := range permutatedWords {
-		for _, word := range originalWords {
-			newWord := word + "." + permutatedWord
-			newPermutatedWords = append(newPermutatedWords, newWord)
-			outputChan <- newWord
-		}
-	}
-	return newPermutatedWords
-}
-
 // ReadLines reads a file line by line into a string slice.
 func ReadLines(filename string) ([]string, error) {
 	file, err := os.Open(filename)
@@ -70,12 +43,10 @@ func RemoveDuplicateStr(wordsChan <-chan string) []string {
 	var mu sync.Mutex
 
 	for word := range wordsChan {
-		if IsCleanWord(word) {
-			if _, ok := seen.LoadOrStore(word, struct{}{}); !ok {
-				mu.Lock()
-				result = append(result, word)
-				mu.Unlock()
-			}
+		if _, ok := seen.LoadOrStore(word, struct{}{}); !ok {
+			mu.Lock()
+			result = append(result, word)
+			mu.Unlock()
 		}
 	}
 
