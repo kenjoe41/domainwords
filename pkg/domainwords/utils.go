@@ -2,24 +2,12 @@ package domainwords
 
 import (
 	"bufio"
-	"context"
-	"crypto/sha1"
 	"fmt"
-	"io"
 	"math/rand"
 	"os"
 	"regexp"
 	"strings"
-
-	"github.com/google/go-github/v64/github"
-	"golang.org/x/oauth2"
-)
-
-var (
-	owner = os.Getenv("GITHUB_USERNAME")
-	token = os.Getenv("GITHUB_TOKEN")
-	repo  = "workflows"
-	path  = "permutations.txt"
+	"sync"
 )
 
 // HandleWords manages word permutations up to the specified depth.
@@ -51,41 +39,42 @@ func permutateWords(permutatedWords, originalWords []string, outputChan chan str
 
 // ReadLines reads a file line by line into a string slice.
 func ReadLines(filename string) ([]string, error) {
-	var lines []string
 	file, err := os.Open(filename)
 	if err != nil {
 		return nil, err
 	}
 	defer file.Close()
 
-	reader := bufio.NewReader(file)
-	for {
-		line, err := reader.ReadString('\n')
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return lines, err
-		}
-		line = strings.TrimSpace(line)
+	scanner := bufio.NewScanner(file)
+	// Pre-allocate memory for lines slice (optional, assuming a rough estimate of 1000 lines)
+	lines := make([]string, 0, 1000) // TODO: Dynamically preallocate memory for each slice.
+
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
 		if line != "" {
 			lines = append(lines, strings.ToLower(line))
 		}
 	}
 
+	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
+
 	return lines, nil
 }
 
-// RemoveDuplicateStr removes duplicate strings from a slice and returns only clean words.
-func RemoveDuplicateStr(strSlice []string) []string {
-	seen := make(map[string]struct{})
+// RemoveDuplicateStr removes duplicate strings using sync.Map for concurrency-safe operations.
+func RemoveDuplicateStr(wordsChan <-chan string) []string {
+	var seen sync.Map
 	var result []string
+	var mu sync.Mutex
 
-	for _, str := range strSlice {
-		if isCleanWord(str) {
-			if _, ok := seen[str]; !ok {
-				seen[str] = struct{}{}
-				result = append(result, str)
+	for word := range wordsChan {
+		if IsCleanWord(word) {
+			if _, ok := seen.LoadOrStore(word, struct{}{}); !ok {
+				mu.Lock()
+				result = append(result, word)
+				mu.Unlock()
 			}
 		}
 	}
@@ -94,7 +83,7 @@ func RemoveDuplicateStr(strSlice []string) []string {
 }
 
 // isCleanWord checks if a word is valid (no single characters or symbols at the start or end).
-func isCleanWord(word string) bool {
+func IsCleanWord(word string) bool {
 	// Check if the word is empty
 	if len(word) == 0 {
 		return false
@@ -185,43 +174,4 @@ func writeTempFile(words []string, tmpDir string) (os.File, error) {
 	}
 	writer.Flush()
 	return *tempFile, nil
-}
-
-// SyncResultsToGitHub syncs the results to a GitHub repository.
-func SyncResultsToGitHub(results []string) error {
-
-	if owner == "" || token == "" {
-		return fmt.Errorf("no Github Username or Token supplied. Hint: populate the GITHUB_USERNAME and GITHUB_TOKEN environment variables")
-	}
-
-	ctx := context.Background()
-	ts := oauth2.StaticTokenSource(&oauth2.Token{AccessToken: token})
-	tc := oauth2.NewClient(ctx, ts)
-	client := github.NewClient(tc)
-
-	// Retrieve existing content
-	content, _, _, err := client.Repositories.GetContents(ctx, owner, repo, path, nil)
-	if err != nil {
-		return err
-	}
-
-	newContent := strings.Join(results, "\n")
-
-	hasher := sha1.New()
-	hasher.Write([]byte(newContent))
-	newContentSHA := fmt.Sprintf("%x", hasher.Sum(nil))
-
-	if content != nil && *content.SHA == newContentSHA {
-		return nil
-	}
-
-	// Create or update the file in the repository
-	_, _, err = client.Repositories.UpdateFile(ctx, owner, repo, path, &github.RepositoryContentFileOptions{
-		Message:   github.String("Update file"),
-		Content:   []byte(newContent),
-		SHA:       content.SHA,
-		Committer: &github.CommitAuthor{Name: github.String("kenjoe41"), Email: github.String("kenjoe41.nafuti@gmail.com")},
-	})
-
-	return err
 }
